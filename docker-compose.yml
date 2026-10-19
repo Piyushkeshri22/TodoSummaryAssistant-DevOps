@@ -1,0 +1,64 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: todo-mysql
+    environment:
+      MYSQL_DATABASE: todo_db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_USER: todoapp
+      MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD:?Set MYSQL_APP_PASSWORD in .env}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mysqladmin ping -h 127.0.0.1 -uroot -p"$${MYSQL_ROOT_PASSWORD}" --silent
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - todo-net
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./Backend/todo-summary-assistant
+    image: todo-backend:1.0
+    container_name: todo-backend
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/todo_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: todoapp
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_APP_PASSWORD:?Set MYSQL_APP_PASSWORD in .env}
+      COHERE_API_KEY: ${COHERE_API_KEY:-}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      SERVER_PORT: "8080"
+      SPRING_JPA_SHOW_SQL: "false"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - todo-net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./Frontend/todo
+      args:
+        REACT_APP_API_BASE_URL: /api
+    image: todo-frontend:1.0
+    container_name: todo-frontend
+    ports:
+      - "3000:8080"
+    depends_on:
+      - backend
+    networks:
+      - todo-net
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+
+networks:
+  todo-net:
+    driver: bridge

@@ -1,14 +1,15 @@
 import axios from 'axios';
 
-//Springboot backend url
-const API_BASE_URL = 'http://localhost:8080/api/todos'; 
+// Uses /api in Docker and supports a custom URL for local development.
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/api';
+const TODOS_URL = `${API_BASE_URL.replace(/\/$/, '')}/todos`;
 
 const todoService = {
-  getAllTodos: () => axios.get(API_BASE_URL),
-  createTodo: (todo) => axios.post(API_BASE_URL, todo),
-  updateTodo: (id, todo) => axios.put(`${API_BASE_URL}/${id}`, todo),
-  deleteTodo: (id) => axios.delete(`${API_BASE_URL}/${id}`),
-  summarizeTodos: () => axios.post(`${API_BASE_URL}/summarize`),
+  getAllTodos: () => axios.get(TODOS_URL),
+  createTodo: (todo) => axios.post(TODOS_URL, todo),
+  updateTodo: (id, todo) => axios.put(`${TODOS_URL}/${id}`, todo),
+  deleteTodo: (id) => axios.delete(`${TODOS_URL}/${id}`),
+  summarizeTodos: () => axios.post(`${TODOS_URL}/summarize`),
 };
 
 export default todoService;
