@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/todos")
-@CrossOrigin(origins = "http://localhost:3000") // Allow frontend access
+@CrossOrigin(origins = {"http://localhost:3000", "http://13.206.190.227:3000"}) // Allow frontend access
 public class TodoController {
 
     @Autowired
