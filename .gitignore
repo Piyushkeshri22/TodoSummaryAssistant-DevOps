@@ -11,6 +11,10 @@ monitoring/alertmanager.yml
 grafana.env
 alertmanager.yml
 
+# Generated Node Exporter textfile metrics and logs
+node-exporter-textfile/*.prom
+container-metrics.log
+
 # Terraform local state and variables
 **/.terraform/
 **/terraform.tfstate

@@ -1,5 +1,6 @@
 # Optional monitoring overlay for the root docker-compose.yml.
-# Start with: docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d --build
+# Validate: docker compose -f docker-compose.yml -f docker-compose.monitoring.yml config --quiet
+# Start:    docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d --build
 services:
   prometheus:
     image: prom/prometheus:v3.5.0
@@ -20,6 +21,7 @@ services:
     depends_on:
       - backend
       - node-exporter
+      - cadvisor
       - alertmanager
     networks:
       - todo-net
@@ -33,12 +35,34 @@ services:
       - --path.procfs=/host/proc
       - --path.sysfs=/host/sys
       - --path.rootfs=/rootfs
+      - --collector.textfile.directory=/textfile
       - '--collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/.+)($|/)'
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro,rslave
+      - ./node-exporter-textfile:/textfile:ro
     mem_limit: 48m
+    networks:
+      - todo-net
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: todo-cadvisor
+    restart: unless-stopped
+    privileged: true
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=30s
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+    mem_limit: 96m
     networks:
       - todo-net
 
