@@ -1,0 +1,58 @@
+digraph TodoSummaryArchitecture {
+  graph [
+    label="Todo Summary Assistant — Deployment and Monitoring Architecture",
+    labelloc="t", fontsize=22, fontname="DejaVu Sans", bgcolor="#ffffff",
+    pad="0.35", nodesep="0.35", ranksep="0.55", splines=ortho,
+    outputorder=edgesfirst
+  ];
+  node [shape=box, style="rounded,filled", fontname="DejaVu Sans", fontsize=10, margin="0.14,0.10", color="#64748b", penwidth=1.2, fillcolor="#f8fafc", fontcolor="#0f172a"];
+  edge [fontname="DejaVu Sans", fontsize=9, color="#475569", penwidth=1.35, arrowsize=0.75];
+
+  github [label="GitHub repository\nSource code + Jenkinsfile", fillcolor="#f1f5f9"];
+  jenkins [label="Jenkins (CI/CD)\nTest • Build • Tag • Push • Deploy", fillcolor="#dbeafe", color="#2563eb"];
+  registry [label="Docker Hub\nVersioned frontend/backend images", fillcolor="#dbeafe", color="#2563eb"];
+  user [label="Users / Browser", fillcolor="#dcfce7", color="#16a34a"];
+  slack [label="Slack #all-devops-alerts\nFiring + resolved notifications", fillcolor="#f3e8ff", color="#9333ea"];
+
+  subgraph cluster_vpc {
+    label="AWS VPC 10.20.0.0/16  |  Region: ap-south-1";
+    labelloc="t"; fontsize=16; fontname="DejaVu Sans"; color="#94a3b8"; penwidth=1.5; style="rounded"; margin=18;
+
+    subgraph cluster_public {
+      label="Public subnet(s) — EC2 application host";
+      fontname="DejaVu Sans"; fontsize=12; color="#60a5fa"; style="rounded,filled"; fillcolor="#eff6ff"; margin=14;
+
+      nginx [label="React frontend / Nginx\nHost port 3000", fillcolor="#dcfce7", color="#16a34a"];
+      backend [label="Spring Boot backend\nDocker network :8080\nActuator / Prometheus metrics", fillcolor="#dcfce7", color="#16a34a"];
+      prometheus [label="Prometheus\n15s scrape + alert rules\nlocalhost:9090", fillcolor="#fef3c7", color="#d97706"];
+      nodeexp [label="Node Exporter\nEC2 CPU / memory / disk", fillcolor="#fef3c7", color="#d97706"];
+      grafana [label="Grafana dashboard\nlocalhost:3001 via SSH tunnel", fillcolor="#f3e8ff", color="#9333ea"];
+      alertmanager [label="Alertmanager\nSlack receiver (private) ", fillcolor="#f3e8ff", color="#9333ea"];
+
+      {rank=same; nginx; backend;}
+      {rank=same; nodeexp; prometheus;}
+      {rank=same; grafana; alertmanager;}
+
+      nginx -> backend [label="/api proxy"];
+      backend -> prometheus [label="/actuator/prometheus", color="#d97706"];
+      nodeexp -> prometheus [label="host metrics", color="#d97706"];
+      prometheus -> grafana [label="query / visualise", color="#9333ea"];
+      prometheus -> alertmanager [label="firing / resolved alerts", color="#9333ea"];
+    }
+
+    subgraph cluster_private {
+      label="Private database subnets";
+      fontname="DejaVu Sans"; fontsize=12; color="#f59e0b"; style="rounded,filled"; fillcolor="#fffbeb"; margin=14;
+      rds [label="Amazon RDS for MySQL\nPrivate endpoint :3306\nInbound only from EC2 security group", fillcolor="#fef3c7", color="#d97706"];
+    }
+    backend -> rds [label="SQL / JDBC", color="#d97706", penwidth=1.8];
+  }
+
+  github -> jenkins [label="push / poll SCM"];
+  jenkins -> registry [label="push tagged images"];
+  registry -> nginx [label="pull image", style=dashed, color="#2563eb"];
+  registry -> backend [label="pull image", style=dashed, color="#2563eb"];
+  user -> nginx [label="HTTP :3000", color="#16a34a", penwidth=1.7];
+  alertmanager -> slack [label="HTTPS webhook", color="#9333ea", penwidth=1.7];
+  jenkins -> backend [label="SSH deploy + health check", style=dashed, color="#2563eb", constraint=false];
+}
