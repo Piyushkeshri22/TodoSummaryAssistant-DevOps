@@ -13,7 +13,7 @@ pipeline {
 
     environment {
         DOCKERHUB_NAMESPACE = 'piyushkeshri22'
-        EC2_HOST = '13.206.190.227'
+        EC2_HOST = '15.206.68.113'
     }
 
     stages {
