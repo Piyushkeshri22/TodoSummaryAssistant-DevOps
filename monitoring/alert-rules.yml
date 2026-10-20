@@ -1,0 +1,47 @@
+groups:
+  - name: todo-summary-alerts
+    rules:
+      - alert: TodoBackendDown
+        expr: up{job="todo-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Todo backend is unavailable"
+          description: "Prometheus cannot scrape the Spring Boot backend. Check application logs, database connectivity, and target health."
+
+      - alert: EC2HighCPU
+        expr: (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "EC2 CPU usage is high"
+          description: "Average host CPU usage has exceeded 85% for 5 minutes. Inspect docker stats and system processes."
+
+      - alert: EC2LowMemory
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100 < 15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "EC2 available memory is low"
+          description: "Available host memory has fallen below 15% for 5 minutes. Inspect JVM and container memory use."
+
+      - alert: EC2DiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/",fstype!=""} / node_filesystem_size_bytes{mountpoint="/",fstype!=""}) * 100 < 15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "EC2 root disk space is low"
+          description: "Free space on the root filesystem has fallen below 15% for 5 minutes. Inspect df -h / and docker system df."
+
+      - alert: TodoBackendHighJvmHeap
+        expr: (sum(jvm_memory_used_bytes{job="todo-backend",area="heap"}) / sum(jvm_memory_max_bytes{job="todo-backend",area="heap"})) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Todo backend JVM heap usage is high"
+          description: "JVM heap usage has exceeded 85% for 5 minutes. Inspect garbage collection, heap configuration, and backend logs."
