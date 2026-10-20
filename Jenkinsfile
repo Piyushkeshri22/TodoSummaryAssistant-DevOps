@@ -31,7 +31,6 @@ pipeline {
                         set "JAVA_HOME=C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.20.101-hotspot"
                         set "PATH=%JAVA_HOME%\\bin;%PATH%"
                         call mvn -B clean test
-                        if errorlevel 1 exit /b 1
                     '''
                 }
             }
@@ -84,16 +83,10 @@ pipeline {
                         if errorlevel 1 exit /b 1
 
                         docker push %DOCKERHUB_NAMESPACE%/todo-summary-backend:%IMAGE_TAG%
-                        if errorlevel 1 (
-                            docker logout
-                            exit /b 1
-                        )
+                        if errorlevel 1 exit /b 1
 
                         docker push %DOCKERHUB_NAMESPACE%/todo-summary-frontend:%IMAGE_TAG%
-                        if errorlevel 1 (
-                            docker logout
-                            exit /b 1
-                        )
+                        if errorlevel 1 exit /b 1
 
                         docker logout
                     '''
@@ -101,51 +94,51 @@ pipeline {
             }
         }
 
+
         stage('Deploy to EC2') {
             steps {
                 withCredentials([
-                    sshUserPrivateKey(
-                        credentialsId: 'ec2-ssh-key',
-                        keyFileVariable: 'SSH_KEY',
-                        usernameVariable: 'SSH_USER'
-                    )
-                ]) {
+                sshUserPrivateKey(
+                credentialsId: 'ec2-ssh-key',
+                keyFileVariable: 'SSH_KEY',
+                usernameVariable: 'SSH_USER'
+            )
+        ])      {
                     bat '''
-                        @echo off
-                        setlocal
+                    @echo off
 
-                        echo ===== FIX SSH KEY PERMISSIONS =====
-                        for /f "delims=" %%I in ('whoami') do set "JENKINS_ACCOUNT=%%I"
+                    echo ===== FIX SSH KEY PERMISSIONS =====
+                    whoami
 
-                        icacls "%SSH_KEY%" /inheritance:r
-                        if errorlevel 1 exit /b 1
+                    for /f "delims=" %%I in ('whoami') do set "JENKINS_ACCOUNT=%%I"
 
-                        icacls "%SSH_KEY%" /remove:g *S-1-5-32-545
-                        icacls "%SSH_KEY%" /grant:r "%JENKINS_ACCOUNT%:(R)"
-                        if errorlevel 1 exit /b 1
+                    icacls "%SSH_KEY%" /inheritance:r
+                    if errorlevel 1 exit /b 1
 
-                        echo ===== DEPLOY AND VERIFY =====
-                        scp -i "%SSH_KEY%" -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL "%WORKSPACE%\\deploy-remote.sh" %SSH_USER%@%EC2_HOST%:~/todo-app/deploy-remote.sh
-                        ssh -i "%SSH_KEY%" -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL %SSH_USER%@%EC2_HOST% "sed -i 's/\r$//' ~/todo-app/deploy-remote.sh && chmod +x ~/todo-app/deploy-remote.sh && ~/todo-app/deploy-remote.sh '%IMAGE_TAG%' '%DOCKERHUB_NAMESPACE%'"
-                        if errorlevel 1 (
-                            echo Deployment or rollback failed. Review Console Output.
-                            exit /b 1
-                        )
-                    '''
-                }
+                    icacls "%SSH_KEY%" /remove:g *S-1-5-32-545
+
+                    icacls "%SSH_KEY%" /grant:r "%JENKINS_ACCOUNT%:(R)"
+                    if errorlevel 1 exit /b 1
+
+                    echo ===== VERIFY SSH KEY PERMISSIONS =====
+                    icacls "%SSH_KEY%"
+
+                    echo ===== DEPLOY TO EC2 =====
+                    ssh -i "%SSH_KEY%" -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL %SSH_USER%@%EC2_HOST% "cd ~/todo-app && cp docker-compose.yml docker-compose.yml.previous && sed -i -E 's|image: piyushkeshri22/todo-summary-backend:[^[:space:]]+|image: piyushkeshri22/todo-summary-backend:%IMAGE_TAG%|' docker-compose.yml && sed -i -E 's|image: piyushkeshri22/todo-summary-frontend:[^[:space:]]+|image: piyushkeshri22/todo-summary-frontend:%IMAGE_TAG%|' docker-compose.yml && docker compose pull && docker compose up -d && for i in 1 2 3 4 5 6 7 8 9 10 11 12; do if curl -fsS http://localhost:3000/ > /dev/null && curl -fsS http://localhost:3000/api/todos > /dev/null; then echo 'Deployment healthy'; exit 0; fi; echo 'Waiting for health check'; sleep 5; done; echo 'Health check failed; rolling back'; cp docker-compose.yml.previous docker-compose.yml && docker compose pull && docker compose up -d; exit 1"
+
+                    if errorlevel 1 exit /b 1
+                '''
             }
         }
     }
+}
 
     post {
         success {
             echo 'CI/CD pipeline completed successfully.'
         }
         failure {
-            echo 'Pipeline failed. Review Console Output, including rollback status.'
-        }
-        always {
-            echo 'Pipeline execution finished.'
+            echo 'Pipeline failed. Review Console Output to identify the failing stage.'
         }
     }
 }
