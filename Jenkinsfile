@@ -125,8 +125,7 @@ pipeline {
                         if errorlevel 1 exit /b 1
 
                         echo ===== DEPLOY AND VERIFY =====
-                        ssh -i "%SSH_KEY%" -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL %SSH_USER%@%EC2_HOST% "bash -s -- '%IMAGE_TAG%' '%DOCKERHUB_NAMESPACE%'" < "%WORKSPACE%\\deploy-remote.sh"
-
+                        ssh -i "%SSH_KEY%" -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL %SSH_USER%@%EC2_HOST% "tr -d '\r' | bash -s -- '%IMAGE_TAG%' '%DOCKERHUB_NAMESPACE%'" < "%WORKSPACE%\\deploy-remote.sh"
                         if errorlevel 1 (
                             echo Deployment or rollback failed. Review Console Output.
                             exit /b 1
