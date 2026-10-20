@@ -6,6 +6,19 @@
 **/.env.*
 !**/.env.example
 
+# Monitoring credentials and local-only secret configuration
+monitoring/alertmanager.yml
+grafana.env
+alertmanager.yml
+
+# Terraform local state and variables
+**/.terraform/
+**/terraform.tfstate
+**/terraform.tfstate.*
+**/terraform.tfvars
+**/terraform.tfvars.json
+**/crash.log
+
 # Java and Maven
 **/target/
 *.log

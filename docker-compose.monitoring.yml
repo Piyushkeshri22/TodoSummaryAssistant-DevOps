@@ -1,0 +1,82 @@
+# Optional monitoring overlay for the root docker-compose.yml.
+# Start with: docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d --build
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: todo-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=3d
+      - --web.enable-lifecycle
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+      - prometheus_data:/prometheus
+    mem_limit: 192m
+    depends_on:
+      - backend
+      - node-exporter
+      - alertmanager
+    networks:
+      - todo-net
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    container_name: todo-node-exporter
+    restart: unless-stopped
+    pid: host
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+      - '--collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/.+)($|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro,rslave
+    mem_limit: 48m
+    networks:
+      - todo-net
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    container_name: todo-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env before starting monitoring}
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana-dashboard.json:/var/lib/grafana/dashboards/todo-summary-monitoring.json:ro
+    mem_limit: 192m
+    depends_on:
+      - prometheus
+    networks:
+      - todo-net
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    container_name: todo-alertmanager
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    mem_limit: 64m
+    networks:
+      - todo-net
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:

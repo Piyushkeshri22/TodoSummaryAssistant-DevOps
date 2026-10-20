@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: Todo Summary Assistant
+    orgId: 1
+    folder: Todo Summary Assistant
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards
