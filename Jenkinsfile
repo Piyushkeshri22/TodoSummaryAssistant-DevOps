@@ -125,7 +125,8 @@ pipeline {
                         if errorlevel 1 exit /b 1
 
                         echo ===== DEPLOY AND VERIFY =====
-                        ssh -i "%SSH_KEY%" -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL %SSH_USER%@%EC2_HOST% "tr -d '\r' | bash -s -- '%IMAGE_TAG%' '%DOCKERHUB_NAMESPACE%'" < "%WORKSPACE%\\deploy-remote.sh"
+                        scp -i "%SSH_KEY%" -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL "%WORKSPACE%\\deploy-remote.sh" %SSH_USER%@%EC2_HOST%:~/todo-app/deploy-remote.sh
+                        ssh -i "%SSH_KEY%" -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL %SSH_USER%@%EC2_HOST% "sed -i 's/\r$//' ~/todo-app/deploy-remote.sh && chmod +x ~/todo-app/deploy-remote.sh && ~/todo-app/deploy-remote.sh '%IMAGE_TAG%' '%DOCKERHUB_NAMESPACE%'"
                         if errorlevel 1 (
                             echo Deployment or rollback failed. Review Console Output.
                             exit /b 1
